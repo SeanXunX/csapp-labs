@@ -1,0 +1,30 @@
+{
+    "configurations": [
+        {
+            "name": "build and debug csim",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/csim",
+            "args": ["-s", "4", "-E", "2", "-b", "4", "-t", "${fileDirname}/traces/yi.trace"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: gcc build active file"
+        },
+    ],
+    "version": "2.0.0"
+  }
