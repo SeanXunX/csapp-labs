@@ -294,195 +294,38 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
     }
     else if (M == 61 && N == 67)
     {
-        int i, j, y, t1, t2, t3, t4;
+        int i, j, y, t1, t2, t3, t4, t5, t6, t7, t8;
         for (j = 0; j + 8 <= M; j += 8)
         {
             for (i = 0; i + 8 <= N; i += 8)
             {
-                if (i == j && i + 16 < N && j + 16 < M)
+                for (y = i; y < i + 8; ++y)
                 {
-                    // diagnal line except the last diagnal block
 
-                    // using the next block and next next block
-                    // upper-left quarter
-                    for (y = j; y < j + 4; ++y)
-                    {
+                    t1 = A[y][j];
+                    t2 = A[y][j + 1];
+                    t3 = A[y][j + 2];
+                    t4 = A[y][j + 3];
+                    t5 = A[y][j + 4];
+                    t6 = A[y][j + 5];
+                    t7 = A[y][j + 6];
+                    t8 = A[y][j + 7];
 
-                        t1 = A[i][y];
-                        t2 = A[i + 1][y];
-                        t3 = A[i + 2][y];
-                        t4 = A[i + 3][y];
-
-                        B[y][i + 8] = t1;
-                        B[y][i + 9] = t2;
-                        B[y][i + 10] = t3;
-                        B[y][i + 11] = t4;
-                    }
-                    // upper-right quarter
-                    for (y = j + 4; y < j + 8; ++y)
-                    {
-
-                        t1 = A[i][y];
-                        t2 = A[i + 1][y];
-                        t3 = A[i + 2][y];
-                        t4 = A[i + 3][y];
-
-                        B[y - 4][i + 16] = t1;
-                        B[y - 4][i + 17] = t2;
-                        B[y - 4][i + 18] = t3;
-                        B[y - 4][i + 19] = t4;
-                    }
-
-                    // get back
-                    for (y = j; y < j + 4; ++y)
-                    {
-
-                        t1 = B[y][i + 8];
-                        t2 = B[y][i + 9];
-                        t3 = B[y][i + 10];
-                        t4 = B[y][i + 11];
-
-                        B[y][i] = t1;
-                        B[y][i + 1] = t2;
-                        B[y][i + 2] = t3;
-                        B[y][i + 3] = t4;
-                    }
-                    for (y = j + 4; y < j + 8; ++y)
-                    {
-
-                        t1 = B[y - 4][i + 16];
-                        t2 = B[y - 4][i + 17];
-                        t3 = B[y - 4][i + 18];
-                        t4 = B[y - 4][i + 19];
-
-                        B[y][i] = t1;
-                        B[y][i + 1] = t2;
-                        B[y][i + 2] = t3;
-                        B[y][i + 3] = t4;
-                    }
-
-                    // lower-left quarter
-                    for (y = j; y < j + 4; ++y)
-                    {
-
-                        t1 = A[i + 4][y];
-                        t2 = A[i + 5][y];
-                        t3 = A[i + 6][y];
-                        t4 = A[i + 7][y];
-
-                        B[y][i + 12] = t1;
-                        B[y][i + 13] = t2;
-                        B[y][i + 14] = t3;
-                        B[y][i + 15] = t4;
-                    }
-                    // lower-right quarter
-                    for (y = j + 4; y < j + 8; ++y)
-                    {
-
-                        t1 = A[i + 4][y];
-                        t2 = A[i + 5][y];
-                        t3 = A[i + 6][y];
-                        t4 = A[i + 7][y];
-
-                        B[y - 4][i + 20] = t1;
-                        B[y - 4][i + 21] = t2;
-                        B[y - 4][i + 22] = t3;
-                        B[y - 4][i + 23] = t4;
-                    }
-
-                    // get back
-                    for (y = j; y < j + 4; ++y)
-                    {
-
-                        t1 = B[y][i + 12];
-                        t2 = B[y][i + 13];
-                        t3 = B[y][i + 14];
-                        t4 = B[y][i + 15];
-
-                        B[y][i + 4] = t1;
-                        B[y][i + 5] = t2;
-                        B[y][i + 6] = t3;
-                        B[y][i + 7] = t4;
-                    }
-                    for (y = j + 4; y < j + 8; ++y)
-                    {
-
-                        t1 = B[y - 4][i + 20];
-                        t2 = B[y - 4][i + 21];
-                        t3 = B[y - 4][i + 22];
-                        t4 = B[y - 4][i + 23];
-
-                        B[y][i + 4] = t1;
-                        B[y][i + 5] = t2;
-                        B[y][i + 6] = t3;
-                        B[y][i + 7] = t4;
-                    }
-                }
-                else
-                {
-                    for (y = j; y < j + 4; ++y)
-                    {
-
-                        t1 = A[i][y];
-                        t2 = A[i + 1][y];
-                        t3 = A[i + 2][y];
-                        t4 = A[i + 3][y];
-
-                        B[y][i] = t1;
-                        B[y][i + 1] = t2;
-                        B[y][i + 2] = t3;
-                        B[y][i + 3] = t4;
-                    }
-
-                    for (y = j + 4; y < j + 8; ++y)
-                    {
-
-                        t1 = A[i][y];
-                        t2 = A[i + 1][y];
-                        t3 = A[i + 2][y];
-                        t4 = A[i + 3][y];
-
-                        B[y - 4][i + 4] = t1;
-                        B[y - 4][i + 5] = t2;
-                        B[y - 4][i + 6] = t3;
-                        B[y - 4][i + 7] = t4;
-                    }
-
-                    for (y = j; y < j + 4; ++y)
-                    {
-                        t1 = B[y][i + 4];
-                        t2 = B[y][i + 5];
-                        t3 = B[y][i + 6];
-                        t4 = B[y][i + 7];
-
-                        B[y][i + 4] = A[i + 4][y];
-                        B[y][i + 5] = A[i + 5][y];
-                        B[y][i + 6] = A[i + 6][y];
-                        B[y][i + 7] = A[i + 7][y];
-
-                        B[y + 4][i] = t1;
-                        B[y + 4][i + 1] = t2;
-                        B[y + 4][i + 2] = t3;
-                        B[y + 4][i + 3] = t4;
-                    }
-
-                    for (y = j + 4; y < j + 8; ++y)
-                    {
-
-                        t1 = A[i + 4][y];
-                        t2 = A[i + 5][y];
-                        t3 = A[i + 6][y];
-                        t4 = A[i + 7][y];
-
-                        B[y][i + 4] = t1;
-                        B[y][i + 5] = t2;
-                        B[y][i + 6] = t3;
-                        B[y][i + 7] = t4;
-                    }
+                    B[j][y] = t1;
+                    B[j + 1][y] = t2;
+                    B[j + 2][y] = t3;
+                    B[j + 3][y] = t4;
+                    B[j + 4][y] = t5;
+                    B[j + 5][y] = t6;
+                    B[j + 6][y] = t7;
+                    B[j + 7][y] = t8;
                 }
             }
         }
-        // i = 56 -> 67, j = 56 -> 61
+
+        // REST
+
+        // // i = 64 -> 67, j = 56 -> 61
         for (j = 0; j + 8 <= M; j += 8)
         {
             for (y = j; y < j + 8; ++y)
@@ -497,7 +340,7 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
             }
         }
 
-        for (i = 0; i + 8 <= N; i += 8)
+        for (i = 0; i + 4 <= N; i += 4)
         {
             for (y = 56; y < M; ++y)
             {
@@ -511,28 +354,17 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
                 B[y][i + 2] = t3;
                 B[y][i + 3] = t4;
             }
-            for (y = 56; y < M; ++y)
-            {
-                t1 = A[i + 4][y];
-                t2 = A[i + 5][y];
-                t3 = A[i + 6][y];
-                t4 = A[i + 7][y];
-
-                B[y][i + 4] = t1;
-                B[y][i + 5] = t2;
-                B[y][i + 6] = t3;
-                B[y][i + 7] = t4;
-            }
         }
 
-        // i = 64, j = 56
-        for (i = 64; i < N; ++i)
+        for (y = 56; y < M; ++y)
         {
-            for (j = 56; j < M; ++j)
-            {
-                t1 = A[i][j];
-                B[j][i] = t1;
-            }
+            t1 = A[i][y];
+            t2 = A[i + 1][y];
+            t3 = A[i + 2][y];
+
+            B[y][i] = t1;
+            B[y][i + 1] = t2;
+            B[y][i + 2] = t3;
         }
     }
 }
@@ -1083,195 +915,38 @@ void transBlockopen64DiagnalS4(int M, int N, int A[N][M], int B[M][N])
 char trans6167_desc[] = "61*67";
 void trans6167(int M, int N, int A[N][M], int B[M][N])
 {
-    int i, j, y, t1, t2, t3, t4;
-    for (j = 0; j + 8 <= 56; j += 8)
+    int i, j, y, t1, t2, t3, t4, t5, t6, t7, t8;
+    for (j = 0; j + 8 <= M; j += 8)
     {
-        for (i = 0; i + 8 <= 64; i += 8)
+        for (i = 0; i + 8 <= N; i += 8)
         {
-            if (i == j && i + 16 < 64 && j + 16 < 56)
+            for (y = i; y < i + 8; ++y)
             {
-                // diagnal line except the last diagnal block
 
-                // using the next block and next next block
-                // upper-left quarter
-                for (y = j; y < j + 4; ++y)
-                {
+                t1 = A[y][j];
+                t2 = A[y][j + 1];
+                t3 = A[y][j + 2];
+                t4 = A[y][j + 3];
+                t5 = A[y][j + 4];
+                t6 = A[y][j + 5];
+                t7 = A[y][j + 6];
+                t8 = A[y][j + 7];
 
-                    t1 = A[i][y];
-                    t2 = A[i + 1][y];
-                    t3 = A[i + 2][y];
-                    t4 = A[i + 3][y];
-
-                    B[y][i + 8] = t1;
-                    B[y][i + 9] = t2;
-                    B[y][i + 10] = t3;
-                    B[y][i + 11] = t4;
-                }
-                // upper-right quarter
-                for (y = j + 4; y < j + 8; ++y)
-                {
-
-                    t1 = A[i][y];
-                    t2 = A[i + 1][y];
-                    t3 = A[i + 2][y];
-                    t4 = A[i + 3][y];
-
-                    B[y - 4][i + 16] = t1;
-                    B[y - 4][i + 17] = t2;
-                    B[y - 4][i + 18] = t3;
-                    B[y - 4][i + 19] = t4;
-                }
-
-                // get back
-                for (y = j; y < j + 4; ++y)
-                {
-
-                    t1 = B[y][i + 8];
-                    t2 = B[y][i + 9];
-                    t3 = B[y][i + 10];
-                    t4 = B[y][i + 11];
-
-                    B[y][i] = t1;
-                    B[y][i + 1] = t2;
-                    B[y][i + 2] = t3;
-                    B[y][i + 3] = t4;
-                }
-                for (y = j + 4; y < j + 8; ++y)
-                {
-
-                    t1 = B[y - 4][i + 16];
-                    t2 = B[y - 4][i + 17];
-                    t3 = B[y - 4][i + 18];
-                    t4 = B[y - 4][i + 19];
-
-                    B[y][i] = t1;
-                    B[y][i + 1] = t2;
-                    B[y][i + 2] = t3;
-                    B[y][i + 3] = t4;
-                }
-
-                // lower-left quarter
-                for (y = j; y < j + 4; ++y)
-                {
-
-                    t1 = A[i + 4][y];
-                    t2 = A[i + 5][y];
-                    t3 = A[i + 6][y];
-                    t4 = A[i + 7][y];
-
-                    B[y][i + 12] = t1;
-                    B[y][i + 13] = t2;
-                    B[y][i + 14] = t3;
-                    B[y][i + 15] = t4;
-                }
-                // lower-right quarter
-                for (y = j + 4; y < j + 8; ++y)
-                {
-
-                    t1 = A[i + 4][y];
-                    t2 = A[i + 5][y];
-                    t3 = A[i + 6][y];
-                    t4 = A[i + 7][y];
-
-                    B[y - 4][i + 20] = t1;
-                    B[y - 4][i + 21] = t2;
-                    B[y - 4][i + 22] = t3;
-                    B[y - 4][i + 23] = t4;
-                }
-
-                // get back
-                for (y = j; y < j + 4; ++y)
-                {
-
-                    t1 = B[y][i + 12];
-                    t2 = B[y][i + 13];
-                    t3 = B[y][i + 14];
-                    t4 = B[y][i + 15];
-
-                    B[y][i + 4] = t1;
-                    B[y][i + 5] = t2;
-                    B[y][i + 6] = t3;
-                    B[y][i + 7] = t4;
-                }
-                for (y = j + 4; y < j + 8; ++y)
-                {
-
-                    t1 = B[y - 4][i + 20];
-                    t2 = B[y - 4][i + 21];
-                    t3 = B[y - 4][i + 22];
-                    t4 = B[y - 4][i + 23];
-
-                    B[y][i + 4] = t1;
-                    B[y][i + 5] = t2;
-                    B[y][i + 6] = t3;
-                    B[y][i + 7] = t4;
-                }
-            }
-            else
-            {
-                for (y = j; y < j + 4; ++y)
-                {
-
-                    t1 = A[i][y];
-                    t2 = A[i + 1][y];
-                    t3 = A[i + 2][y];
-                    t4 = A[i + 3][y];
-
-                    B[y][i] = t1;
-                    B[y][i + 1] = t2;
-                    B[y][i + 2] = t3;
-                    B[y][i + 3] = t4;
-                }
-
-                for (y = j + 4; y < j + 8; ++y)
-                {
-
-                    t1 = A[i][y];
-                    t2 = A[i + 1][y];
-                    t3 = A[i + 2][y];
-                    t4 = A[i + 3][y];
-
-                    B[y - 4][i + 4] = t1;
-                    B[y - 4][i + 5] = t2;
-                    B[y - 4][i + 6] = t3;
-                    B[y - 4][i + 7] = t4;
-                }
-
-                for (y = j; y < j + 4; ++y)
-                {
-                    t1 = B[y][i + 4];
-                    t2 = B[y][i + 5];
-                    t3 = B[y][i + 6];
-                    t4 = B[y][i + 7];
-
-                    B[y][i + 4] = A[i + 4][y];
-                    B[y][i + 5] = A[i + 5][y];
-                    B[y][i + 6] = A[i + 6][y];
-                    B[y][i + 7] = A[i + 7][y];
-
-                    B[y + 4][i] = t1;
-                    B[y + 4][i + 1] = t2;
-                    B[y + 4][i + 2] = t3;
-                    B[y + 4][i + 3] = t4;
-                }
-
-                for (y = j + 4; y < j + 8; ++y)
-                {
-
-                    t1 = A[i + 4][y];
-                    t2 = A[i + 5][y];
-                    t3 = A[i + 6][y];
-                    t4 = A[i + 7][y];
-
-                    B[y][i + 4] = t1;
-                    B[y][i + 5] = t2;
-                    B[y][i + 6] = t3;
-                    B[y][i + 7] = t4;
-                }
+                B[j][y] = t1;
+                B[j + 1][y] = t2;
+                B[j + 2][y] = t3;
+                B[j + 3][y] = t4;
+                B[j + 4][y] = t5;
+                B[j + 5][y] = t6;
+                B[j + 6][y] = t7;
+                B[j + 7][y] = t8;
             }
         }
     }
-    // i = 56 -> 67, j = 56 -> 61
+
+    // REST
+
+    // // i = 64 -> 67, j = 56 -> 61
     for (j = 0; j + 8 <= M; j += 8)
     {
         for (y = j; y < j + 8; ++y)
@@ -1286,7 +961,7 @@ void trans6167(int M, int N, int A[N][M], int B[M][N])
         }
     }
 
-    for (i = 0; i + 8 <= N; i += 8)
+    for (i = 0; i + 4 <= N; i += 4)
     {
         for (y = 56; y < M; ++y)
         {
@@ -1300,29 +975,38 @@ void trans6167(int M, int N, int A[N][M], int B[M][N])
             B[y][i + 2] = t3;
             B[y][i + 3] = t4;
         }
-        for (y = 56; y < M; ++y)
-        {
-            t1 = A[i + 4][y];
-            t2 = A[i + 5][y];
-            t3 = A[i + 6][y];
-            t4 = A[i + 7][y];
-
-            B[y][i + 4] = t1;
-            B[y][i + 5] = t2;
-            B[y][i + 6] = t3;
-            B[y][i + 7] = t4;
-        }
     }
 
-    // i = 64, j = 56
-    for (i = 64; i < N; ++i)
+    for (y = 56; y < M; ++y)
     {
-        for (j = 56; j < M; ++j)
-        {
-            t1 = A[i][j];
-            B[j][i] = t1;
-        }
+        t1 = A[i][y];
+        t2 = A[i + 1][y];
+        t3 = A[i + 2][y];
+
+        B[y][i] = t1;
+        B[y][i + 1] = t2;
+        B[y][i + 2] = t3;
     }
+
+    // // // simple
+    // int tx, ty;
+    // for (ty = 0; ty < j; ++ty)
+    // {
+    //     for (tx = i; tx < N; ++tx)
+    //     {
+    //         t1 = A[tx][ty];
+    //         B[ty][tx] = t1;
+    //     }
+    // }
+
+    // for (ty = j; ty < M; ++ty)
+    // {
+    //     for (tx = 0; tx < N; ++tx)
+    //     {
+    //         t1 = A[tx][ty];
+    //         B[ty][tx] = t1;
+    //     }
+    // }
 }
 
 char transBlockopen32Diagnal_desc[] = "Blockopen32Diagnal transpose";
@@ -1412,16 +1096,49 @@ void transBlockopen32Diagnal(int M, int N, int A[N][M], int B[M][N])
 char trans_desc[] = "Simple row-wise scan transpose";
 void trans(int M, int N, int A[N][M], int B[M][N])
 {
-    int i, j, tmp;
 
-    for (i = 0; i < N; i++)
-    {
-        for (j = 0; j < M; j++)
+    int i, j, v1, v2, v3, v4, v5, v6, v7, v8;
+    int n = N / 8 * 8;
+    int m = M / 8 * 8;
+    for (j = 0; j < m; j += 8)
+        for (i = 0; i < n; ++i)
         {
-            tmp = A[i][j];
-            B[j][i] = tmp;
+            v1 = A[i][j];
+            v2 = A[i][j + 1];
+            v3 = A[i][j + 2];
+            v4 = A[i][j + 3];
+            v5 = A[i][j + 4];
+            v6 = A[i][j + 5];
+            v7 = A[i][j + 6];
+            v8 = A[i][j + 7];
+
+            B[j][i] = v1;
+            B[j + 1][i] = v2;
+            B[j + 2][i] = v3;
+            B[j + 3][i] = v4;
+            B[j + 4][i] = v5;
+            B[j + 5][i] = v6;
+            B[j + 6][i] = v7;
+            B[j + 7][i] = v8;
         }
-    }
+    for (i = n; i < N; ++i)
+        for (j = m; j < M; ++j)
+        {
+            v1 = A[i][j];
+            B[j][i] = v1;
+        }
+    for (i = 0; i < N; ++i)
+        for (j = m; j < M; ++j)
+        {
+            v1 = A[i][j];
+            B[j][i] = v1;
+        }
+    for (i = n; i < N; ++i)
+        for (j = 0; j < M; ++j)
+        {
+            v1 = A[i][j];
+            B[j][i] = v1;
+        }
 }
 
 /*
@@ -1437,7 +1154,8 @@ void registerFunctions()
     registerTransFunction(transpose_submit, transpose_submit_desc);
 
     /* Register any additional transpose functions */
-    registerTransFunction(trans6167, trans6167_desc);
+    // registerTransFunction(trans6167, trans6167_desc);
+    // registerTransFunction(trans, trans_desc);
 
     // registerTransFunction(trans, trans_desc);
     // registerTransFunction(transBlockopen, transBlockopen_desc);
