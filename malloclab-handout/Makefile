@@ -1,12 +1,15 @@
 #
 # Students' Makefile for the Malloc Lab
 #
-TEAM = bovik
-VERSION = 1
+TEAM = sean
+VERSION = 2
 HANDINDIR = /afs/cs.cmu.edu/academic/class/15213-f01/malloclab/handin
 
-CC = gcc
-CFLAGS = -Wall -O2 -m32
+# CC = gcc 
+# CFLAGS = -Wall -O2 -m32
+
+CC = gcc 
+CFLAGS = -g -Wall -O0 -m32
 
 OBJS = mdriver.o mm.o memlib.o fsecs.o fcyc.o clock.o ftimer.o
 

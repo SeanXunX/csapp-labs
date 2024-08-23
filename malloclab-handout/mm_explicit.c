@@ -1,5 +1,6 @@
 /**
- * Using segregated free list.
+ * Using explicit free list.
+ * Structed by the index of 2.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,12 +34,6 @@ team_t team = {
  * --- prev_ptr (4 bytes) ---
  * --- payload (some bytes) ---
  * --- footer (4 bytes) ---
- */
-
-/**
- * The structure of heap:
- *      seglist      
- *      block
  */
 
 #define MAXNUM (1 << 21)
@@ -90,58 +85,9 @@ team_t team = {
 // Set the prev_alloc bit
 #define SET_PREVALLOC(bp) PUT(HDRP(bp), PACK((GET(HDRP(bp))), 0x2))
 
-
 static void *heap_listp;
-static void **seglist_ptr;
-// static void *free_listp;
+static void *free_listp;
 static size_t heap_size;
-
-/**
- * Calculate the power of 2.
- */
-static size_t cal_pw2(size_t size) {
-    size_t pw = 0;
-    size /= 2;
-    while (size) {
-        ++pw;
-        size /= 2;
-    }
-    return pw;
-}
-
-/**
- * Get the index of seglist with given bp
- */
-static size_t get_index(void *bp) {
-    size_t size = GET_SIZE(HDRP(bp));
-    if (size <= 0) {
-        return -1;
-    }
-    return cal_pw2(size);
-} 
-
-/**
- * Get the free block's own free_listp.
- */
-static void* get_free_listp(void *bp) {
-    return seglist_ptr[get_index(bp)];
-}
-
-/**
- * Get free_listp with size.
- */
-static void* get_free_listp_size(size_t size) {
-    return seglist_ptr[cal_pw2(size)];
-}
-
-/**
- * Set the free_listp as bp.
- */
-static void set_free_listp(void *bp, void *new_ptr) {
-    if (bp != NULL) {
-        seglist_ptr[get_index(bp)] = new_ptr;
-    }
-}
 
 /**
  * isValidBp - checks if the block that bp points to is valid
@@ -162,10 +108,11 @@ static void mm_hirachy() {
     /**
      * prints all the blocks as follows:
      *      
-     *      - block 1 (0x1234568)
-     *      |    - header/footer: 0x12345678
+     *      - block 1
+     *      |    - header: 0x12345678
      *      |    - next_ptr: 0x12345678
      *      |    - prev_ptr: 0x12345678
+     *      |    - footer: 0x12345678
      * 
      */
     int index = 1, size = 0;
@@ -176,7 +123,7 @@ static void mm_hirachy() {
         // if (!GET_ALLOC(p)) {
         //     free_indexes[size++] = index;
         // }
-        printf("\t*-block %d (%p)\n", index++, p);
+        printf("\t*-block %d\n", index++);
         printf("\t\t|\theader/footer: %x\n", GET(HDRP(p)));
         printf("\t\t|\tsize = %d, is_allocated = %d \n", 
                GET_SIZE(HDRP(p)), GET_ALLOC(HDRP(p)));
@@ -184,79 +131,77 @@ static void mm_hirachy() {
         printf("\t\t|\tprev_ptr: %p\n", GET_PREVPTR(p));
         p = NEXT_BLKP(p);
     }
-    
-    /**
-     * prints the seglist
-     */
-    printf("\n*** Seglist ***\n");
-    for (int i = 0; i < 26; ++i) {
-        if (seglist_ptr[i]) {
-            printf("\t2^%d ~ 2^%d: %p\n", i, i + 1, seglist_ptr[i]);
-        }
-    }
-    printf("------------------------------------\n");
+    // printf("\n**** The number of blocks that are in the free block list: ****\n block: ");
+    // for(int i = 0; i < size; ++i) {
+    //     printf("%d, ", i);
+    // } 
 }
 
 /**
- * Checks if every block in the free list marked as free and valid.
+ * mm_check helper functions
  */
-// static int check_free_list() {
-//     void *ptr = free_listp;
-//     while (ptr != NULL) {
-//         if (GET_ALLOC(ptr) || !isValidBp(ptr)) {
-//             // if the block is allocated
-//             return 0;
-//         }
-//        ptr = GET_NEXTPTR(ptr);
-//     }
-//     return 1;
-// }
+
+/**
+ * Checks if every block in the free list marked as free and valid.
+ * 
+ */
+static int check_free_list() {
+    void *ptr = free_listp;
+    while (ptr != NULL) {
+        if (GET_ALLOC(ptr) || !isValidBp(ptr)) {
+            // if the block is allocated
+            return 0;
+        }
+       ptr = GET_NEXTPTR(ptr);
+    }
+    return 1;
+}
 
 /**
  * check_is_coalesced - checks if any contiguous free blocks are left not coalesced
  * If continuous free blocks exist, then return the pointer pointing to the first one.
  * Otherwise, returns NULL.
-//  */
-// static void* check_is_coalesced() {
-//     void *ptr = free_listp, *next_ptr, *next_bp;
-//     while (GET_NEXTPTR(ptr) != NULL && NEXT_BLKP(ptr) != NULL) {
-//         next_ptr = GET_NEXTPTR(ptr);
-//         next_bp = NEXT_BLKP(ptr);
-//         if (next_bp == next_ptr) {
-//             return ptr;
-//         }
-//         ptr = next_ptr;
-//     }
-//     return NULL;
-// }
+ */
+static void* check_is_coalesced() {
+    void *ptr = free_listp, *next_ptr, *next_bp;
+    while (GET_NEXTPTR(ptr) != NULL && NEXT_BLKP(ptr) != NULL) {
+        next_ptr = GET_NEXTPTR(ptr);
+        next_bp = NEXT_BLKP(ptr);
+        if (next_bp == next_ptr) {
+            return ptr;
+        }
+        ptr = next_ptr;
+    }
+    return NULL;
+}
 
 /**
  * is_contained - if the free block list contains bp
  */
-// static int is_contained(void* bp) {
-//     void *p = free_listp;
-//     while (p) {
-//         if (p == bp) {
-//             return 1;
-//         }
-//         p = GET_NEXTPTR(p);
-//     }
-//     return 0;
-// }
+static int is_contained(void* bp) {
+    void *p = free_listp;
+    while (p) {
+        if (p == bp) {
+            return 1;
+        }
+        p = GET_NEXTPTR(p);
+    }
+    return 0;
+}
 
 /**
  * is_all_contained - checks if every free block is in the free list
  */
-// static int is_all_contained() {
-//     void *bp = heap_listp;
-//     while (isValidBp(bp)) {
-//         if (!GET_ALLOC(bp) && !is_contained(bp)) {
-//             return 0;
-//         }
-//         bp = NEXT_BLKP(bp);
-//     }
-//     return 1;
-// }
+static int is_all_contained() {
+    void *bp = heap_listp;
+    while (isValidBp(bp)) {
+        if (!GET_ALLOC(bp) && !is_contained(bp)) {
+            return 0;
+        }
+        bp = NEXT_BLKP(bp);
+    }
+    return 1;
+}
 
 /**
  * mm_check - heap consistency checker
@@ -277,23 +222,23 @@ static void mm_hirachy() {
  *  visionally.
  *
  *  Remeber to remove any calls to mm_check!!!
-//  */ 
-// static int mm_check() {
-//     if (!check_free_list()) {
-//         printf("ERROR: check_free_list\n");
-//         mm_hirachy();
-//         exit(1);
-//     } else if (check_is_coalesced()) {
-//         printf("ERROR: check_is_coalesced\n");
-//         mm_hirachy();
-//         exit(1);
-//     } else if (!is_all_contained()) {
-//         printf("ERROR: is_all_contained\n");
-//         mm_hirachy();
-//         exit(1);
-//     }
-//     return 1;
-// }
+ */ 
+static int mm_check() {
+    if (!check_free_list()) {
+        printf("ERROR: check_free_list\n");
+        mm_hirachy();
+        exit(1);
+    } else if (check_is_coalesced()) {
+        printf("ERROR: check_is_coalesced\n");
+        mm_hirachy();
+        exit(1);
+    } else if (!is_all_contained()) {
+        printf("ERROR: is_all_contained\n");
+        mm_hirachy();
+        exit(1);
+    }
+    return 1;
+}
 
 /**
  * insert_block - inserts the given block at the head of free list
@@ -302,13 +247,12 @@ static void insert_block(void *bp)
 {
     // Last in first out
     // LIFO
-    void *free_listp = get_free_listp(bp); 
     PUT_NEXTPTR(bp, free_listp);
     PUT_PREVPTR(bp, NULL);
     if (free_listp != NULL) {
         PUT_PREVPTR(free_listp, bp);
     }
-    set_free_listp(bp, bp);
+    free_listp = bp;
 }
 
 /**
@@ -326,7 +270,7 @@ static void remove_block(void *bp)
     }
     if (prev_bp == NULL) {
         // deleting the first entity in the free list
-        set_free_listp(bp, next_bp);
+        free_listp = next_bp;
     } 
     
 }
@@ -336,10 +280,10 @@ static void remove_block(void *bp)
  */
 static void *coalesce(void *bp)
 {
-    void *prev_bp = NULL, *next_bp = NULL;
+    void *prev_bp, *next_bp;
     size_t next_alloc, prev_alloc;
     // size_t prev_alloc = GET_PREVALLOC(HDRP(bp));
-    if (bp != heap_listp && isValidBp(prev_bp = PREV_BLKP(bp))) {
+    if (isValidBp(prev_bp = PREV_BLKP(bp))) {
         prev_alloc = GET_ALLOC(HDRP(prev_bp));
     } else {
         prev_alloc = 1;
@@ -354,19 +298,21 @@ static void *coalesce(void *bp)
 
     if (prev_alloc && next_alloc)
     {
+        insert_block(bp);
     }
     else if (prev_alloc && !next_alloc)
     {
         // only next block is free
+        void *next_bp = NEXT_BLKP(bp);
         remove_block(next_bp);
         size += GET_SIZE(HDRP(next_bp));
         PUT(HDRP(bp), PACK(size, 0));
         PUT(FTRP(bp), PACK(size, 0));
+        insert_block(bp);
     }
     else if (!prev_alloc && next_alloc)
     {
         // only previous block is free
-        remove_block(prev_bp);
         size += GET_SIZE(FTRP(PREV_BLKP(bp)));
         PUT(FTRP(bp), PACK(size, 0));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
@@ -375,14 +321,14 @@ static void *coalesce(void *bp)
     else
     {
         // both next and previous blocks are free
-        remove_block(prev_bp);
+        void *next_bp = NEXT_BLKP(bp);
+        void *prev_bp = PREV_BLKP(bp);
         remove_block(next_bp);
         size += GET_SIZE(HDRP(next_bp)) + GET_SIZE(FTRP(prev_bp));
         PUT(HDRP(prev_bp), PACK(size, 0));
         PUT(FTRP(next_bp), PACK(size, 0));
         bp = PREV_BLKP(bp);
     }
-    insert_block(bp);
     return bp;
 }
 
@@ -405,8 +351,6 @@ static void *extend_heap(size_t asize)
     // Initialize free block header/footer and the epilogue header
     PUT(HDRP(bp), PACK(size, 0));         // Free block header
     PUT(FTRP(bp), PACK(size, 0));         // Free block footer
-    PUT_NEXTPTR(bp, NULL);
-    PUT_PREVPTR(bp, NULL);
     PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1)); // New epilogue header
 
     // Coalesce if any adjacent blocks is free
@@ -418,22 +362,19 @@ static void *extend_heap(size_t asize)
  */
 static void *find_fit(size_t asize)
 {
-    void *tmp;
-    size_t tmp_size, index = cal_pw2(asize);
-    while (index < 26) {
-        tmp = seglist_ptr[index];
-        while (tmp != NULL)
+    void *tarptr = NULL, *tmp = free_listp;
+    size_t tmp_size;
+    while (tmp != NULL)
+    {
+        tmp_size = GET_SIZE(HDRP(tmp));
+        if (!GET_ALLOC(HDRP(tmp)) && tmp_size >= asize)
         {
-            tmp_size = GET_SIZE(HDRP(tmp));
-            if (!GET_ALLOC(HDRP(tmp)) && tmp_size >= asize)
-            {
-                return tmp;
-            }
-            tmp = GET_NEXTPTR(tmp);
+            tarptr = tmp;
+            break;
         }
-        ++index;
+        tmp = GET_NEXTPTR(tmp);
     }
-    return NULL;
+    return tarptr;
 }
 
 
@@ -448,10 +389,10 @@ static void place(void *bp, size_t asize)
     size_t remainder = now_size - asize;
     if (remainder >= MIN_BLOCK_SIZE)
     {
-        remove_block(bp);
         // split
         PUT(HDRP(bp), PACK(asize, 1));
         PUT(FTRP(bp), PACK(asize, 1));
+        remove_block(bp);
         bp = NEXT_BLKP(bp);
         PUT(HDRP(bp), PACK(remainder, 0));
         PUT(FTRP(bp), PACK(remainder, 0));
@@ -471,15 +412,11 @@ static void place(void *bp, size_t asize)
 int mm_init(void)
 {
     // Creates the initial empty heap
-    if ((seglist_ptr = mem_sbrk((4 + 26) * WSIZE)) == (void *)-1) // 3 is for alignment
+    if ((heap_listp = mem_sbrk(4 * WSIZE)) == (void *)-1)
     {
         return -1;
     }
-    for (int i = 0; i < 26; ++i) {
-        // initialize setlist
-        PUT(seglist_ptr + (i * WSIZE), 0);
-    }
-    heap_listp = seglist_ptr + 26 * WSIZE;
+    free_listp = heap_listp;
     PUT(heap_listp, 0);                            // Alignment padding
     PUT(heap_listp + (1 * WSIZE), PACK(DSIZE, 1)); // Prologue header
     PUT(heap_listp + (2 * WSIZE), PACK(DSIZE, 1)); // Prologue footer
