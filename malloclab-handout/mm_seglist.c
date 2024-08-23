@@ -155,10 +155,13 @@ static int isValidBp(void *bp) {
     return 1;
 }
 
+static int hirachy_num = 0;
 /**
  * mm_hirachy - visionalize the current heap and free list
  */
 static void mm_hirachy() {
+    printf("------------------------------------\n");
+    printf("hirachy num = %d\n", ++hirachy_num);
     /**
      * prints all the blocks as follows:
      *      
@@ -444,11 +447,11 @@ static void *find_fit(size_t asize)
  */
 static void place(void *bp, size_t asize)
 {
+    remove_block(bp);
     size_t now_size = GET_SIZE(HDRP(bp));
     size_t remainder = now_size - asize;
     if (remainder >= MIN_BLOCK_SIZE)
     {
-        remove_block(bp);
         // split
         PUT(HDRP(bp), PACK(asize, 1));
         PUT(FTRP(bp), PACK(asize, 1));
@@ -461,7 +464,7 @@ static void place(void *bp, size_t asize)
     {
         PUT(HDRP(bp), PACK(now_size, 1));
         PUT(FTRP(bp), PACK(now_size, 1));
-        remove_block(bp);
+        // remove_block(bp);
     }
 }
 
@@ -477,7 +480,7 @@ int mm_init(void)
     }
     for (int i = 0; i < 26; ++i) {
         // initialize setlist
-        PUT(seglist_ptr + (i * WSIZE), 0);
+        PUT(seglist_ptr + i, 0);
     }
     heap_listp = seglist_ptr + 26 * WSIZE;
     PUT(heap_listp, 0);                            // Alignment padding
@@ -520,6 +523,8 @@ void *mm_malloc(size_t size)
     if ((bp = find_fit(asize)) != NULL)
     {
         place(bp, asize);
+    //   // TODO: delete hirachy
+    //   mm_hirachy();
         return bp;
     }
 
@@ -530,6 +535,8 @@ void *mm_malloc(size_t size)
         return NULL;
     }
     place(bp, asize);
+    //   // TODO: delete hirachy
+    //   mm_hirachy();
     return bp;
 }
 
@@ -544,6 +551,8 @@ void mm_free(void *ptr)
     PUT(HDRP(ptr), PACK(size, 0));
     PUT(FTRP(ptr), PACK(size, 0));
     coalesce(ptr);
+    //   // TODO: delete hirachy
+    //   mm_hirachy();
 }
 
 /*
