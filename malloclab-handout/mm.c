@@ -1,6 +1,7 @@
 /**
  * Using segregated free list.
  * Optimize boundary tags.
+ * Improve mm_realloc
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -526,8 +527,8 @@ void *mm_malloc(size_t size)
     {
         place(bp, asize);
 
-    ++hirachy_num;
     //   // TODO: delete hirachy
+    // ++hirachy_num;
     //   mm_hirachy();
         return bp;
     }
@@ -540,8 +541,8 @@ void *mm_malloc(size_t size)
     }
     place(bp, asize);
 
-    ++hirachy_num;
     //   // TODO: delete hirachy
+    // ++hirachy_num;
     //   mm_hirachy();
     return bp;
 }
@@ -561,8 +562,8 @@ void mm_free(void *ptr)
     SET_PRENOTALLOC(HDRP(next_bp));
     coalesce(ptr);
 
-    ++hirachy_num;
     //   // TODO: delete hirachy
+    // ++hirachy_num;
     //   mm_hirachy();
 }
 
@@ -573,16 +574,61 @@ void *mm_realloc(void *ptr, size_t size)
 {
     void *oldptr = ptr;
     void *newptr;
-    size_t copySize;
+    size_t copySize, oldSize, asize;
+    asize = (2 + size / DSIZE + (size % DSIZE ? 1 : 0)) * DSIZE;
+    oldSize = GET_SIZE(HDRP(ptr));
 
-    newptr = mm_malloc(size);
-    if (newptr == NULL)
+    if (size < 0) {
         return NULL;
-    // copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
-    copySize = GET_SIZE(HDRP(oldptr)) - DSIZE;
-    if (size < copySize)
-        copySize = size;
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
+    } else if (asize == oldSize) {
+        newptr = oldptr;
+    } else if (asize < oldSize) {
+       size_t remnant = oldSize - asize;
+       if (remnant >= MIN_BLOCK_SIZE) {
+            //split
+            PUT(HDRP(ptr), PACK(asize, GET_PREVALLOC(HDRP(ptr)) | 0x1));
+            ptr = NEXT_BLKP(ptr);
+            PUT(HDRP(ptr), PACK(remnant, 0));
+            PUT(FTRP(ptr), PACK(remnant, 0));
+            SET_PREVALLOC(HDRP(ptr));
+            insert_block(ptr);
+       } else {
+            newptr = oldptr;
+       }
+    } else if (asize > oldSize) {
+        size_t overflow = asize - oldSize;
+        void *next_bp = NEXT_BLKP(ptr);
+        if (isValidBp(next_bp) && !GET_ALLOC(HDRP(next_bp)) && overflow <= GET_SIZE(HDRP(next_bp))) {
+            // kind of coalescing the next free block
+            size_t remainder = GET_SIZE(HDRP(next_bp)) - overflow;
+            if (remainder >= MIN_BLOCK_SIZE) {
+                remove_block(next_bp);
+                PUT(HDRP(ptr), PACK(asize, GET_PREVALLOC(HDRP(ptr)) | 0x1));
+                void *tmp = NEXT_BLKP(ptr);
+                PUT(HDRP(tmp), PACK(remainder, 0));
+                PUT(FTRP(tmp), PACK(remainder, 0));
+                SET_PREVALLOC(HDRP(tmp));
+                insert_block(tmp);
+            } else {
+                remove_block(next_bp);
+                PUT(HDRP(ptr), PACK(oldSize + GET_SIZE(HDRP(next_bp)), GET_PREVALLOC(HDRP(ptr)) | 0x1));
+            }
+           newptr = oldptr;
+        } else {
+            // printf(">>>>>>mm_malloc in mm_realloc is entering\n");
+            newptr = mm_malloc(size);
+            if (newptr == NULL)
+                return NULL;
+            // copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
+            copySize = GET_SIZE(HDRP(oldptr)) - DSIZE;
+            memcpy(newptr, oldptr, copySize);
+            // printf(">>>>>>mm_free in mm_realloc is entering\n");
+            mm_free(oldptr);
+        }  
+    }
+    
+      // // TODO: delete hirachy
+      // ++hirachy_num;
+      // mm_hirachy();
     return newptr;
 }

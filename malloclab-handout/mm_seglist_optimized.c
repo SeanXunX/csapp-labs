@@ -1,5 +1,6 @@
 /**
  * Using segregated free list.
+ * Optimize boundary tags.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,6 +71,11 @@ team_t team = {
 #define GET_SIZE(p) (GET(p) & ~0x7)
 #define GET_ALLOC(p) (GET(p) & 0x1)
 #define GET_PREVALLOC(p) (GET(p) & 0x2)
+#define GET_SIGNBITS(p) (GET(p) & 0x7)
+
+// Set the prev alloc bit
+#define SET_PREVALLOC(p) (PUT(p, PACK(GET(p), 0x2)))
+#define SET_PRENOTALLOC(p) (PUT(p, (GET(p) & ~0x2)))
 
 // Get the pointer to the next/previous block
 #define GET_NEXTPTR(bp) GET((char *)(bp))
@@ -86,9 +92,6 @@ team_t team = {
 // Given block ptr bp, compute address of next and previous blocks
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)))
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE((char *)(bp) - DSIZE))
-
-// Set the prev_alloc bit
-#define SET_PREVALLOC(bp) PUT(HDRP(bp), PACK((GET(HDRP(bp))), 0x2))
 
 
 static void *heap_listp;
@@ -161,7 +164,7 @@ static int hirachy_num = 0;
  */
 static void mm_hirachy() {
     printf("------------------------------------\n");
-    printf("hirachy num = %d\n", ++hirachy_num);
+    printf("hirachy num = %d\n", hirachy_num);
     /**
      * prints all the blocks as follows:
      *      
@@ -339,15 +342,11 @@ static void remove_block(void *bp)
  */
 static void *coalesce(void *bp)
 {
-    void *prev_bp = NULL, *next_bp = NULL;
+    void *prev_bp = PREV_BLKP(bp), *next_bp = NEXT_BLKP(bp);
     size_t next_alloc, prev_alloc;
     // size_t prev_alloc = GET_PREVALLOC(HDRP(bp));
-    if (bp != heap_listp && isValidBp(prev_bp = PREV_BLKP(bp))) {
-        prev_alloc = GET_ALLOC(HDRP(prev_bp));
-    } else {
-        prev_alloc = 1;
-    }
-    if (isValidBp(next_bp = NEXT_BLKP(bp))) {
+    prev_alloc = GET_PREVALLOC(HDRP(bp));
+    if (isValidBp(next_bp)) {
         next_alloc = GET_ALLOC(HDRP(next_bp));
     } else {
         next_alloc = 1;
@@ -360,10 +359,10 @@ static void *coalesce(void *bp)
     }
     else if (prev_alloc && !next_alloc)
     {
-        // only next block is free
+        // only next block is free, previous block is allocated
         remove_block(next_bp);
         size += GET_SIZE(HDRP(next_bp));
-        PUT(HDRP(bp), PACK(size, 0));
+        PUT(HDRP(bp), PACK(size, 2));
         PUT(FTRP(bp), PACK(size, 0));
     }
     else if (!prev_alloc && next_alloc)
@@ -372,7 +371,7 @@ static void *coalesce(void *bp)
         remove_block(prev_bp);
         size += GET_SIZE(FTRP(PREV_BLKP(bp)));
         PUT(FTRP(bp), PACK(size, 0));
-        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, GET_PREVALLOC(HDRP(PREV_BLKP(bp)))));
         bp = PREV_BLKP(bp);
     }
     else
@@ -381,7 +380,7 @@ static void *coalesce(void *bp)
         remove_block(prev_bp);
         remove_block(next_bp);
         size += GET_SIZE(HDRP(next_bp)) + GET_SIZE(FTRP(prev_bp));
-        PUT(HDRP(prev_bp), PACK(size, 0));
+        PUT(HDRP(prev_bp), PACK(size, GET_PREVALLOC(HDRP(prev_bp))));
         PUT(FTRP(next_bp), PACK(size, 0));
         bp = PREV_BLKP(bp);
     }
@@ -405,8 +404,9 @@ static void *extend_heap(size_t asize)
         return NULL;
     }
 
+    size_t is_pre_alloc = GET_PREVALLOC(HDRP(bp));
     // Initialize free block header/footer and the epilogue header
-    PUT(HDRP(bp), PACK(size, 0));         // Free block header
+    PUT(HDRP(bp), PACK(size, is_pre_alloc));         // Free block header
     PUT(FTRP(bp), PACK(size, 0));         // Free block footer
     PUT_NEXTPTR(bp, NULL);
     PUT_PREVPTR(bp, NULL);
@@ -428,7 +428,7 @@ static void *find_fit(size_t asize)
         while (tmp != NULL)
         {
             tmp_size = GET_SIZE(HDRP(tmp));
-            if (!GET_ALLOC(HDRP(tmp)) && tmp_size >= asize)
+            if (!GET_ALLOC(HDRP(tmp)) && tmp_size + WSIZE >= asize)
             {
                 return tmp;
             }
@@ -453,18 +453,20 @@ static void place(void *bp, size_t asize)
     if (remainder >= MIN_BLOCK_SIZE)
     {
         // split
-        PUT(HDRP(bp), PACK(asize, 1));
-        PUT(FTRP(bp), PACK(asize, 1));
+        PUT(HDRP(bp), PACK(asize, GET_PREVALLOC(HDRP(bp)) | 0x1));
         bp = NEXT_BLKP(bp);
         PUT(HDRP(bp), PACK(remainder, 0));
         PUT(FTRP(bp), PACK(remainder, 0));
+        SET_PREVALLOC(HDRP(bp));
         insert_block(bp);
     }
     else
     {
-        PUT(HDRP(bp), PACK(now_size, 1));
+        PUT(HDRP(bp), PACK(now_size, GET_PREVALLOC(HDRP(bp)) | 0x1));
         PUT(FTRP(bp), PACK(now_size, 1));
         // remove_block(bp);
+        void *next_bp = NEXT_BLKP(bp);
+        SET_PREVALLOC(HDRP(next_bp));
     }
 }
 
@@ -482,11 +484,11 @@ int mm_init(void)
         // initialize setlist
         PUT(seglist_ptr + i, 0);
     }
-    heap_listp = seglist_ptr + 26 * WSIZE;
+    heap_listp = seglist_ptr + 26;
     PUT(heap_listp, 0);                            // Alignment padding
     PUT(heap_listp + (1 * WSIZE), PACK(DSIZE, 1)); // Prologue header
     PUT(heap_listp + (2 * WSIZE), PACK(DSIZE, 1)); // Prologue footer
-    PUT(heap_listp + (3 * WSIZE), PACK(0, 1));     // Epilogue header
+    PUT(heap_listp + (3 * WSIZE), PACK(0, 0b11));     // Epilogue header
     heap_listp += (2 * WSIZE);
 
     // Extend the empty heap with a free block of CHUNKSIZE bytes
@@ -523,6 +525,8 @@ void *mm_malloc(size_t size)
     if ((bp = find_fit(asize)) != NULL)
     {
         place(bp, asize);
+
+    ++hirachy_num;
     //   // TODO: delete hirachy
     //   mm_hirachy();
         return bp;
@@ -535,6 +539,8 @@ void *mm_malloc(size_t size)
         return NULL;
     }
     place(bp, asize);
+
+    ++hirachy_num;
     //   // TODO: delete hirachy
     //   mm_hirachy();
     return bp;
@@ -547,10 +553,15 @@ void mm_free(void *ptr)
 {
 
     size_t size = GET_SIZE(HDRP(ptr));
+    size_t is_pre_alloc = GET_PREVALLOC(HDRP(ptr));
 
-    PUT(HDRP(ptr), PACK(size, 0));
+    PUT(HDRP(ptr), PACK(size, is_pre_alloc));
     PUT(FTRP(ptr), PACK(size, 0));
+    void *next_bp = NEXT_BLKP(ptr);
+    SET_PRENOTALLOC(HDRP(next_bp));
     coalesce(ptr);
+
+    ++hirachy_num;
     //   // TODO: delete hirachy
     //   mm_hirachy();
 }
