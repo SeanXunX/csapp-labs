@@ -12,7 +12,7 @@
 static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3\r\n";
 sbuf_t sbuf;
 int readcnt;
-sem_t w, mutex_cnt;
+sem_t w, mutex_cnt, mutex_update;
 deque cache;
 
 typedef struct uri_t
@@ -81,6 +81,7 @@ void *thread(void *vargp) {
 
 static void init_reader_writer() {
     Sem_init(&mutex_cnt, 0, 1);
+    Sem_init(&mutex_update, 0, 1);
     Sem_init(&w, 0, 1);
     readcnt = 0;
 }
@@ -106,8 +107,10 @@ void doit(int fd) {
         return;
     }
 
-    block *b;
-    if ((b = get_cache(&cache, uri)) != NULL) {
+    P(&mutex_update);
+    block *b = get_cache(&cache, uri);
+    V(&mutex_update);
+    if (b != NULL) {
         reader(fd, b);
         return;
     }
@@ -245,11 +248,9 @@ void reader(int fd, block *b) {
     }
     V(&mutex_cnt);
 
-    printf("\n<<<<<<< in reader(), b->content = \n%s\n <<<<<<\n", b->content);
     Rio_writen(fd, b->content, strlen(b->content));
 
     P(&mutex_cnt);
-    update(&cache, b);
     readcnt--;
     if (readcnt == 0) {
         // last out
