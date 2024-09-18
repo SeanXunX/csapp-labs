@@ -108,8 +108,6 @@ void doit(int fd) {
 
     block *b;
     if ((b = get_cache(&cache, uri)) != NULL) {
-        // todo: delete the printf
-        printf("*********get file from proxy cache***********\n");
         reader(fd, b);
         return;
     }
@@ -125,13 +123,10 @@ void doit(int fd) {
     proxyfd = Open_clientfd(uri_parsed->hostname, uri_parsed->port); 
     Rio_readinitb(&rio_server, proxyfd);
 
-    // //todo: Correct the generate_header function
-    // printf("new header is %s\n", header);
-    
     Rio_writen(proxyfd, header, strlen(header));
 
     /* Send back to the client */
-    char *buf_cache = (char *)Malloc(MAX_OBJECT_SIZE);
+    char *buf_cache = (char *)Calloc(1, MAX_OBJECT_SIZE);
     size_t n, buf_size = 0;
     while((n = Rio_readlineb(&rio_server, buf_server, MAXLINE)) != 0) {
         buf_size += n;
@@ -250,7 +245,7 @@ void reader(int fd, block *b) {
     }
     V(&mutex_cnt);
 
-    printf("\n<<<<<<< in reader(), b->content = %s <<<<<<\n", b->content);
+    printf("\n<<<<<<< in reader(), b->content = \n%s\n <<<<<<\n", b->content);
     Rio_writen(fd, b->content, strlen(b->content));
 
     P(&mutex_cnt);
@@ -264,14 +259,10 @@ void reader(int fd, block *b) {
 }
 
 void writer(char *uri, char *buf) {
-    // todo: delete
-    printf("*******in the writer()************\n");
     if (strlen(buf) > MAX_OBJECT_SIZE) {
         return;
     } else {
         P(&w);
-    // todo: delete
-    printf("*******gonna push into cache************\n");
         while (cache.total_size > MAX_CACHE_SIZE) {
             pop(&cache);
         }

@@ -69,16 +69,8 @@ void pop(deque *q)
 
 block *get_cache(deque *q, char *uri)
 {
-    // todo: delete
-    printf("*******enter get cache ************\n");
-    printf("uri = %s\n", uri);
-
     block *ptr = q->front;
     while (ptr) {
-        
-        // todo: delete
-        printf("ptr->uri = %s\n", ptr->uri);
-    
         if (!strcmp(ptr->uri, uri)) {
             update(q, ptr);
             return ptr;
@@ -88,10 +80,11 @@ block *get_cache(deque *q, char *uri)
     return NULL;
 }
 
+/**
+ * Todo : think about adding exclusive block to it
+ */
 void update(deque *q, block *b)
 {
-    //todo: delete
-    printf("*************enter update()************\n");
     if (b->prev == NULL) {
         // b is front
         return;
