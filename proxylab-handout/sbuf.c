@@ -5,7 +5,7 @@
  * Create an empty, bounded shared buffer with n slots.
  */
 void sbuf_init(sbuf_t *sp, int n) {
-    sp->buf = Calloc(n, sizeof(int));   
+    sp->buf = (int *)Calloc(n, sizeof(int));   
     sp->n = n;                          /* Buffer holds max of n items*/
     sp->front = sp->rear = 0;           /* Empty buffer iff front*/
     Sem_init(&sp->mutex, 0, 1);         /* Binary semaphore for locking */

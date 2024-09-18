@@ -1,5 +1,6 @@
 #include "csapp.h"
 #include "sbuf.h"
+#include "block.h"
 
 /* Recommended max cache and object sizes */
 #define MAX_CACHE_SIZE 1049000
@@ -10,7 +11,9 @@
 /* You won't lose style points for including this long line in your code */
 static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3\r\n";
 sbuf_t sbuf;
-int cachecnt;
+int readcnt;
+sem_t w, mutex_cnt;
+deque cache;
 
 typedef struct uri_t
 {
@@ -19,12 +22,15 @@ typedef struct uri_t
     char path[MAXLINE];
 } uri_t;
 
+
 void doit(int fd);
 void parse_uri(char *uri, uri_t *uri_parsed);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg); 
 void generate_header(char *header, uri_t *uri_parsed, rio_t *rio);
 void modify_header(char *buf, int *connection_exist, int *proxy_connection_exist); 
 void *thread(void *vargp);
+void reader(int fd, block *b);
+void writer(char *uri, char *buf);
 
 int main(int argc, char **argv)
 {
@@ -42,6 +48,9 @@ int main(int argc, char **argv)
     
     listenfd = Open_listenfd(argv[1]);
 
+    /* Initialize the cache */
+    cache_init(&cache);
+
     /* Initialize the thread pool */
     sbuf_init(&sbuf, SBUFSIZE);
     for (int i = 0; i < NTHREADS; ++i) {
@@ -56,6 +65,8 @@ int main(int argc, char **argv)
         printf("Accepted connection from (%s, %s)\n", hostname, port);
         sbuf_insert(&sbuf, connfd);
     }
+    sbuf_deinit(&sbuf);
+    cache_free(&cache);
     return 0;
 }
 
@@ -68,11 +79,20 @@ void *thread(void *vargp) {
     }
 }
 
+static void init_reader_writer() {
+    Sem_init(&mutex_cnt, 0, 1);
+    Sem_init(&w, 0, 1);
+    readcnt = 0;
+}
+
 void doit(int fd) {
     int proxyfd;
     char buf_server[MAXLINE], buf_client[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
     char header[MAXLINE];
     rio_t rio_client, rio_server;
+
+    static pthread_once_t once = PTHREAD_ONCE_INIT;
+    Pthread_once(&once, init_reader_writer);
 
     /* Read request line and headers */
     Rio_readinitb(&rio_client, fd);
@@ -86,6 +106,14 @@ void doit(int fd) {
         return;
     }
 
+    block *b;
+    if ((b = get_cache(&cache, uri)) != NULL) {
+        // todo: delete the printf
+        printf("*********get file from proxy cache***********\n");
+        reader(fd, b);
+        return;
+    }
+
     /* Parse uri into three part */    
     struct uri_t *uri_parsed = (struct uri_t *)Calloc(1, sizeof(struct uri_t));
     parse_uri(uri, uri_parsed);
@@ -93,7 +121,6 @@ void doit(int fd) {
     /* Generate the header and send it to the server */ 
     generate_header(header, uri_parsed, &rio_client);
 
-    // P(&mutex_call_server);
     /* Open the server and send the new request to it */
     proxyfd = Open_clientfd(uri_parsed->hostname, uri_parsed->port); 
     Rio_readinitb(&rio_server, proxyfd);
@@ -104,13 +131,20 @@ void doit(int fd) {
     Rio_writen(proxyfd, header, strlen(header));
 
     /* Send back to the client */
-    size_t n;
+    char *buf_cache = (char *)Malloc(MAX_OBJECT_SIZE);
+    size_t n, buf_size = 0;
     while((n = Rio_readlineb(&rio_server, buf_server, MAXLINE)) != 0) {
+        buf_size += n;
+        if (buf_size < MAX_OBJECT_SIZE) {
+            strcat(buf_cache, buf_server);
+        }   
         printf("server sent back %d bytes\n", (int)n);
         Rio_writen(fd, buf_server, n);
     }
-    // V(&mutex_call_server);
     
+    writer(uri, buf_cache);
+
+    Free(uri_parsed);
     Close(proxyfd);
 }
 
@@ -201,4 +235,47 @@ void modify_header(char *buf, int *connection_exist, int *proxy_connection_exist
             strcpy(find_semicolon, ": close\r\n");
         } 
     }
+}
+
+
+/**
+ *  Read from cache to client. 
+ */
+void reader(int fd, block *b) {
+    P(&mutex_cnt);
+    readcnt++;
+    if (readcnt == 1) {
+        // first in
+        P(&w);
+    }
+    V(&mutex_cnt);
+
+    printf("\n<<<<<<< in reader(), b->content = %s <<<<<<\n", b->content);
+    Rio_writen(fd, b->content, strlen(b->content));
+
+    P(&mutex_cnt);
+    update(&cache, b);
+    readcnt--;
+    if (readcnt == 0) {
+        // last out
+        V(&w);
+    }
+    V(&mutex_cnt);
+}
+
+void writer(char *uri, char *buf) {
+    // todo: delete
+    printf("*******in the writer()************\n");
+    if (strlen(buf) > MAX_OBJECT_SIZE) {
+        return;
+    } else {
+        P(&w);
+    // todo: delete
+    printf("*******gonna push into cache************\n");
+        while (cache.total_size > MAX_CACHE_SIZE) {
+            pop(&cache);
+        }
+        push(&cache, create_block(uri, buf));
+        V(&w);
+    } 
 }
